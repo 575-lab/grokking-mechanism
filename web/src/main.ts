@@ -15,7 +15,7 @@ app.innerHTML = `
     </header>
 
     <section class="panel control-panel">
-      <div class="field"><label for="preset">Experiment</label><select id="preset"><option value="demo">Quick demo</option><option value="full">Full reproduction</option></select></div>
+      <div class="field"><label for="preset">Experiment</label><select id="preset"><option value="demo">Quick demo</option><option value="full" selected>Full reproduction</option></select></div>
       <div class="field"><label for="backend">Backend</label><select id="backend"><option value="auto">Auto / WebGPU</option><option value="webgpu">WebGPU</option><option value="wasm">Wasm</option></select></div>
       <div class="field"><label for="modulus">Modulus p</label><input id="modulus" type="number" min="5" max="257" /></div>
       <div class="field"><label for="epochs">Epochs</label><input id="epochs" type="number" min="1" max="100000" /></div>
@@ -313,5 +313,5 @@ controls.pause.addEventListener("click", () => {
 controls.reset.addEventListener("click", () => reset());
 controls.export.addEventListener("click", exportRun);
 
-applyPreset(DEMO_CONFIG);
+applyPreset(FULL_CONFIG);
 updateButtons();
