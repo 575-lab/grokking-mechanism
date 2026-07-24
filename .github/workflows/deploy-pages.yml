@@ -39,6 +39,7 @@ jobs:
       - run: npm ci
       - run: npm test
       - run: npm run build -- --base /grokking-mechanism/
+      - run: touch dist/.nojekyll
 
       - name: Configure Pages
         if: github.event_name != 'pull_request'
