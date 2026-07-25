@@ -18,7 +18,7 @@ The default experiment uses `p=113`, a 30% training split, and 40,000 full-batch
 
 ## Browser dashboard
 
-Live demo: https://davidnet.github.io/grokking-mechanism/
+Live demo: https://575-lab.github.io/grokking-mechanism/
 
 The `web/` application reimplements the same model with jax-js and trains entirely in the browser. WebGPU is selected when available, with Wasm as the fallback. Training runs in a Web Worker so the live charts and prediction heatmap remain responsive.
 
