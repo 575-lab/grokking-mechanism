@@ -103,6 +103,14 @@ def _scatter_labels(ax, coords: np.ndarray, p: int):
         spine.set_visible(False)
 
 
+def _stage_names(n: int) -> list[str]:
+    """Name the panels by position, so that a run with only some checkpoints kept
+    still labels its final panel "Representation Learning" rather than "Overfitting"."""
+    if n == 1:
+        return ["Representation Learning"]
+    return ["Initialization"] + ["Overfitting"] * (n - 2) + ["Representation Learning"]
+
+
 def plot(
     run_dir: Path,
     epochs: tuple[int, ...] = (0, 1000, None),
@@ -118,7 +126,7 @@ def plot(
     """
     cfg = load_config(run_dir)
     epochs = tuple(cfg.total_epochs if e is None else e for e in epochs)
-    stages = ["Initialization", "Overfitting", "Representation Learning"]
+    stages = _stage_names(len(epochs))
 
     freq = None
     if projection == "frequency":
@@ -149,6 +157,86 @@ def plot(
 
     out_path = out_path or (run_dir / f"embedding_{projection}.png")
     fig.savefig(out_path, dpi=200)
+    print(f"saved {out_path}")
+    return out_path
+
+
+def frequency_trajectory(run_dir: Path, n_freqs: int = 4, stride: int = 1):
+    """Track each learned frequency's share of the embedding variance, and how
+    cleanly it oscillates, across every checkpoint of a run.
+
+    Frequencies are chosen from the final checkpoint and then followed backwards, so
+    the question being asked is "when did the circles the model ended up with form?"
+    rather than "what was dominant at each moment", which noise would make unstable
+    early in training.
+    """
+    cfg = load_config(run_dir)
+    final = number_embeddings(model_at_epoch(cfg, run_dir, cfg.total_epochs), cfg.p)
+    freqs = sorted(int(f) for f in (np.argsort(fourier_power(final)[1:])[::-1] + 1)[:n_freqs])
+
+    n_chunks = cfg.total_epochs // cfg.checkpoint_every
+    epochs = [0] + [(c + 1) * cfg.checkpoint_every for c in range(0, n_chunks, stride)]
+    share = np.empty((len(epochs), len(freqs)))
+    purity = np.empty_like(share)
+
+    for i, epoch in enumerate(epochs):
+        embeddings = number_embeddings(model_at_epoch(cfg, run_dir, epoch), cfg.p)
+        power = fourier_power(embeddings)
+        for j, f in enumerate(freqs):
+            share[i, j] = power[f]
+            plane = frequency_plane(embeddings, f)
+            spectrum = (np.abs(np.fft.rfft(plane, axis=0)) ** 2).sum(axis=1)
+            purity[i, j] = spectrum[f] / spectrum.sum()
+
+    np.savez(
+        run_dir / "frequency_trajectory.npz",
+        epoch=np.array(epochs), freqs=np.array(freqs), share=share, purity=purity,
+    )
+    return cfg, np.array(epochs), freqs, share, purity
+
+
+def plot_frequency_trajectory(
+    run_dir: Path, n_freqs: int = 4, stride: int = 1, out_path: Path | None = None
+):
+    cfg, epochs, freqs, share, purity = frequency_trajectory(run_dir, n_freqs, stride)
+    metrics = np.load(run_dir / "metrics.npz")
+    grok_epoch = int(metrics["epoch"][np.argmax(metrics["test_acc"] > 0.9)])
+
+    fig, axes = plt.subplots(3, 1, figsize=(9, 10), sharex=True)
+    colors = plt.cm.tab10(np.linspace(0, 1, 10))
+    x = np.maximum(epochs, 1)  # epoch 0 has no place on a log axis
+
+    axes[0].plot(metrics["epoch"], metrics["train_acc"], label="train", color="0.4")
+    axes[0].plot(metrics["epoch"], metrics["test_acc"], label="test", color="tab:red")
+    axes[0].set_ylabel("accuracy")
+    axes[0].legend(loc="center left")
+
+    for j, f in enumerate(freqs):
+        axes[1].plot(x, share[:, j] * 100, label=f"f = {f}", color=colors[j])
+        axes[2].plot(x, purity[:, j] * 100, label=f"f = {f}", color=colors[j])
+    axes[1].set_ylabel("% of embedding variance")
+    axes[2].set_ylabel("in-plane purity (%)")
+    axes[2].set_xlabel("epoch")
+    axes[2].set_ylim(0, 102)
+    axes[1].legend(loc="upper left", ncol=2)
+
+    for ax in axes:
+        ax.axvline(grok_epoch, color="tab:blue", ls="--", lw=1)
+        ax.spines[["top", "right"]].set_visible(False)
+    axes[0].annotate(
+        f"test acc > 0.9\nepoch {grok_epoch:,}", xy=(grok_epoch, 0.45),
+        xytext=(6, 0), textcoords="offset points", color="tab:blue", fontsize=9,
+    )
+
+    axes[0].set_xscale("log")
+    fig.suptitle(
+        f"When the circles form — (a + b) mod {cfg.p}, {len(freqs)} learned frequencies",
+        fontsize=12,
+    )
+    fig.tight_layout(rect=(0, 0, 1, 0.97))
+
+    out_path = out_path or (run_dir / "frequency_trajectory.png")
+    fig.savefig(out_path, dpi=180)
     print(f"saved {out_path}")
     return out_path
 

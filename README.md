@@ -30,6 +30,20 @@ The paper's own projection (`--projection pca`) does not show a circle here, and
 
 Projecting onto a single frequency's plane recovers the circle: each of the four is round to within a 7–9% spread in radius. `--projection frequency` shows one such plane across the three training stages; `circles` shows the Fourier spectrum alongside every dominant frequency's circle.
 
+## When the circles form
+
+`trajectory` follows each learned frequency across every checkpoint of a run, recording its share of the embedding variance and its *in-plane purity* — the fraction of the signal within a frequency's own plane that actually oscillates at that frequency. The baseline is around 50%, since the plane is picked to maximise frequency-`f` content.
+
+```bash
+uv run python main.py trajectory --run-dir runs/grokking-mod113
+```
+
+Frequencies are chosen from the final checkpoint and followed backwards, which asks "when did the circles the model ended up with form?" rather than "what was dominant at each moment" — the latter is unstable early on, when the spectrum is noise.
+
+On a `p=113` run the circles turn out not to form together: one frequency is a clean circle by epoch 4,100, less than half way to the grokking transition at epoch 10,017, while the rest crystallize in sequence around it. Training also prunes — a frequency can rise to a few percent and then be driven back to nothing. Everything is settled by epoch 15,000; the remaining 25,000 epochs change the representation not at all.
+
+Note that the identity and number of learned frequencies is **not** determined by the seed. Two runs here with byte-identical config, seed and data split converged to different frequency sets, GPU floating-point nondeterminism being amplified over 40,000 steps. Published runs and figures: [davidnet/grokking-mechanism](https://huggingface.co/davidnet/grokking-mechanism).
+
 ## Interpretability notebook
 
 `notebooks/interpretability.py` is a [marimo](https://docs.marimo.io/) notebook that inspects the grokked checkpoint for the Fourier structure behind modular addition. It is a plain Python file, so it diffs and reviews like source rather than like JSON.
