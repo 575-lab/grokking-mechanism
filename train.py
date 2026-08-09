@@ -2,6 +2,7 @@ import json
 import time
 from pathlib import Path
 
+import jax
 import numpy as np
 import optax
 import orbax.checkpoint as ocp
@@ -114,5 +115,12 @@ def load_checkpoint(cfg: GrokkingConfig, run_dir: Path, step: int):
     mgr = ocp.CheckpointManager((run_dir / "checkpoints").resolve(), options=options)
     abstract_model = nnx.eval_shape(lambda: GrokkingTransformer(cfg, rngs=nnx.Rngs(0)))
     graphdef, abstract_params = nnx.split(abstract_model, nnx.Param)
+    # Pin the target to the local device. Without an explicit sharding, Orbax reads the
+    # one recorded at save time and raises "Topology mismatch" whenever a run trained on
+    # a GPU (e.g. a Colab VM) is restored on a CPU-only machine.
+    sharding = jax.sharding.SingleDeviceSharding(jax.devices()[0])
+    abstract_params = jax.tree.map(
+        lambda x: jax.ShapeDtypeStruct(x.shape, x.dtype, sharding=sharding), abstract_params
+    )
     restored_params = mgr.restore(step, args=ocp.args.StandardRestore(abstract_params))
     return nnx.merge(graphdef, restored_params)

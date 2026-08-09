@@ -14,5 +14,5 @@ node_modules/
 # training run outputs (metrics, checkpoints)
 runs/
 
-# Jupyter
-.ipynb_checkpoints/
+# marimo
+__marimo__/

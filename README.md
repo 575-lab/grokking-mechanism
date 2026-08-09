@@ -16,6 +16,32 @@ uv run python main.py plot --run-dir runs/grokking-mod113
 
 The default experiment uses `p=113`, a 30% training split, and 40,000 full-batch optimizer steps. Run artifacts include the configuration, split indices, metrics, Orbax checkpoints, and the generated training curve.
 
+## Embedding structure (Liu et al. Figure 1)
+
+`embedding_pca.py` reproduces Figure 1 of [Liu et al., *Towards Understanding Grokking*](https://arxiv.org/abs/2205.10343): the input embeddings at initialization, while the model is merely overfitting, and after it generalizes. The paper uses `p=53`.
+
+```bash
+uv run python main.py train --p 53 --frac-train 0.5 --epochs 20000 --run-id grokking-mod53
+uv run python main.py embedding-pca --run-dir runs/grokking-mod53 --epochs 0 100 20000 --projection frequency
+uv run python main.py circles --run-dir runs/grokking-mod53
+```
+
+The paper's own projection (`--projection pca`) does not show a circle here, and that is a property of the model rather than of the plot. This architecture learns **four** frequencies at once — for the seed above, f = 2, 9, 20 and 25, each carrying 19–26% of the embedding variance, which is why the top eight singular values are nearly equal and the top-2 plane holds only 29% of the variance. That plane is a superposition of four circles and looks unstructured.
+
+Projecting onto a single frequency's plane recovers the circle: each of the four is round to within a 7–9% spread in radius. `--projection frequency` shows one such plane across the three training stages; `circles` shows the Fourier spectrum alongside every dominant frequency's circle.
+
+## Interpretability notebook
+
+`notebooks/interpretability.py` is a [marimo](https://docs.marimo.io/) notebook that inspects the grokked checkpoint for the Fourier structure behind modular addition. It is a plain Python file, so it diffs and reviews like source rather than like JSON.
+
+```bash
+uv run marimo edit notebooks/interpretability.py   # interactive
+uv run marimo run notebooks/interpretability.py    # read-only app
+uv run python notebooks/interpretability.py        # execute top to bottom as a script
+```
+
+It expects a completed `runs/grokking-mod113` run (config defaults, all 40,000 epochs), and reads the final checkpoint plus `metrics.npz` from it.
+
 ## Browser dashboard
 
 Live demo: https://575-lab.github.io/grokking-mechanism/
