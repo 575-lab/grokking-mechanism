@@ -16,6 +16,18 @@ uv run python main.py plot --run-dir runs/grokking-mod113
 
 The default experiment uses `p=113`, a 30% training split, and 40,000 full-batch optimizer steps. Run artifacts include the configuration, split indices, metrics, Orbax checkpoints, and the generated training curve.
 
+## Interpretability notebook
+
+`notebooks/interpretability.py` is a [marimo](https://docs.marimo.io/) notebook that inspects the grokked checkpoint for the Fourier structure behind modular addition. It is a plain Python file, so it diffs and reviews like source rather than like JSON.
+
+```bash
+uv run marimo edit notebooks/interpretability.py   # interactive
+uv run marimo run notebooks/interpretability.py    # read-only app
+uv run python notebooks/interpretability.py        # execute top to bottom as a script
+```
+
+It expects a completed `runs/grokking-mod113` run (config defaults, all 40,000 epochs), and reads the final checkpoint plus `metrics.npz` from it.
+
 ## Browser dashboard
 
 Live demo: https://575-lab.github.io/grokking-mechanism/

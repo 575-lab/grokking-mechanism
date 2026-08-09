@@ -24,3 +24,7 @@ dir = "web"
 [tasks.python-check]
 description = "Compile the Python reference implementation"
 run = "uv run python -m compileall -q ."
+
+[tasks.notebook]
+description = "Open the interpretability notebook in marimo"
+run = "uv run marimo edit notebooks/interpretability.py"
