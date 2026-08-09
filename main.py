@@ -44,6 +44,13 @@ def cmd_embedding_pca(args):
     embedding_pca.plot(run_dir, epochs=epochs, projection=args.projection)
 
 
+def cmd_trajectory(args):
+    import embedding_pca
+
+    run_dir = Path(args.run_dir) if args.run_dir else latest_run_dir()
+    embedding_pca.plot_frequency_trajectory(run_dir, n_freqs=args.n_freqs, stride=args.stride)
+
+
 def cmd_circles(args):
     import embedding_pca
 
@@ -71,8 +78,9 @@ def main():
     p_pca = sub.add_parser("embedding-pca", help="PCA of the input embeddings over training")
     p_pca.add_argument("--run-dir", type=str, default=None, help="defaults to the most recent run")
     p_pca.add_argument(
-        "--epochs", type=int, nargs=3, default=None,
-        help="the three snapshots to show (default: 0, 1000, and the final epoch)",
+        "--epochs", type=int, nargs="+", default=None,
+        help="the snapshots to show (default: 0, 1000, and the final epoch). Runs that "
+             "kept only some checkpoints can pass fewer, e.g. --epochs 0 40000",
     )
     p_pca.add_argument(
         "--projection", choices=("pca", "frequency"), default="pca",
@@ -86,6 +94,17 @@ def main():
     p_circ.add_argument("--epoch", type=int, default=None, help="defaults to the final epoch")
     p_circ.add_argument("--n-freqs", type=int, default=4)
     p_circ.set_defaults(func=cmd_circles)
+
+    p_traj = sub.add_parser(
+        "trajectory", help="track each learned frequency across every checkpoint"
+    )
+    p_traj.add_argument("--run-dir", type=str, default=None, help="defaults to the most recent run")
+    p_traj.add_argument("--n-freqs", type=int, default=4)
+    p_traj.add_argument(
+        "--stride", type=int, default=1,
+        help="check every Nth checkpoint; 1 uses all of them",
+    )
+    p_traj.set_defaults(func=cmd_trajectory)
 
     args = parser.parse_args()
     args.func(args)
