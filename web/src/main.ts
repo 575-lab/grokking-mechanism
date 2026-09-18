@@ -15,7 +15,7 @@ app.innerHTML = `
     </header>
 
     <section class="panel control-panel">
-      <div class="field"><label for="preset">Experiment</label><select id="preset"><option value="demo">Quick demo</option><option value="full" selected>Full reproduction</option></select></div>
+      <div class="field"><label for="preset">Experiment</label><select id="preset"><option value="demo" selected>Quick demo</option><option value="full">Full reproduction</option></select></div>
       <div class="field"><label for="backend">Backend</label><select id="backend"><option value="auto">Auto / WebGPU</option><option value="webgpu">WebGPU</option><option value="wasm">Wasm</option></select></div>
       <div class="field"><label for="modulus">Modulus p</label><input id="modulus" type="number" min="5" max="257" /></div>
       <div class="field"><label for="epochs">Epochs</label><input id="epochs" type="number" min="1" max="100000" /></div>
@@ -179,10 +179,16 @@ function handleMessage(message: WorkerMessage): void {
     const backendNote = chunked
       ? `Wasm is accumulating an exact full-batch gradient in ${message.trainChunkSize}-example chunks to stay within browser memory.`
       : `Backend ${message.selectedDevice} is executing each optimizer step as one full batch.`;
-    const securityNote =
-      message.selectedDevice === "wasm" && !message.secureContext
-        ? " WebGPU is unavailable over LAN HTTP; use HTTPS or localhost to enable it."
-        : "";
+    const wantedWebGpu = runningConfig?.backend !== "wasm";
+    const fellBack =
+      wantedWebGpu &&
+      message.selectedDevice !== "webgpu" &&
+      !message.availableDevices.includes("webgpu");
+    const securityNote = !fellBack
+      ? ""
+      : message.secureContext
+        ? " WebGPU exposed no adapter here, so training fell back to Wasm. On Linux that usually means the browser has no working Vulkan driver; chrome://gpu reports why."
+        : " WebGPU is unavailable over LAN HTTP; use HTTPS or localhost to enable it.";
     setText(
       "#run-note",
       `${backendNote}${securityNote} Mint pixels are correct held-out predictions.`,
@@ -313,5 +319,5 @@ controls.pause.addEventListener("click", () => {
 controls.reset.addEventListener("click", () => reset());
 controls.export.addEventListener("click", exportRun);
 
-applyPreset(FULL_CONFIG);
+applyPreset(DEMO_CONFIG);
 updateButtons();

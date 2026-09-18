@@ -38,14 +38,16 @@ export const FULL_CONFIG: GrokkingConfig = {
 
 export const DEMO_CONFIG: GrokkingConfig = {
   ...FULL_CONFIG,
-  p: 31,
-  fractionTrain: 0.4,
+  p: 23,
+  fractionTrain: 0.7,
   dModel: 64,
   dHead: 16,
   dMlp: 128,
-  totalEpochs: 8_000,
+  learningRate: 3e-3,
+  weightDecay: 3.0,
+  totalEpochs: 1_500,
   metricEvery: 5,
-  evaluateEvery: 50,
+  evaluateEvery: 25,
 };
 
 export function validateConfig(config: GrokkingConfig): void {

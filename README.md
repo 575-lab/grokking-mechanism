@@ -84,7 +84,7 @@ Open the localhost URL printed by Vite. The dashboard provides:
 - Training throughput and learning-phase indicators.
 - A modular-addition prediction field that distinguishes training and held-out pairs.
 
-The quick preset is intended for development and backend checks. The full preset matches the Python model dimensions and 40,000-epoch schedule.
+The full preset matches the Python model dimensions and 40,000-epoch schedule. The quick preset is tuned to grok in well under a minute: `p = 23`, a 70% training split, a 64-wide model, learning rate `3e-3` and weight decay `3.0`, run for 1,500 epochs. It memorizes the 370 training pairs by epoch 60–80, sits on the plateau, and generalizes between epochs 200 and 360 — on every one of ten seeds in the Python reference, and at epoch ~335 in the browser. The earlier quick preset (`p = 31`, 40% split, weight decay `1.0`) never left the plateau in 8,000 epochs; sweeping it showed that anything below a 60% split is seed-dependent and that the higher weight decay and learning rate are what make the transition fast.
 
 ## Browser implementation notes
 
@@ -94,8 +94,13 @@ The quick preset is intended for development and backend checks. The full preset
 - All operations carry an explicit batch dimension; the implementation does not depend on partially supported `vmap` paths.
 - The development server intentionally avoids cross-origin isolation. This keeps jax-js on its bounded, single-threaded Wasm path; its SharedArrayBuffer backend has a substantially larger allocation footprint and can overflow the allocator on the full preset.
 - On Wasm, the runtime accumulates weighted gradients in 128-example chunks and applies AdamW once per epoch. This is mathematically the same full-batch update while avoiding jax-js's approximately 2 GiB Wasm allocator overflow on the full preset. Test evaluation and heatmap inference are also chunked.
+- Every epoch ends by forcing the parameters and optimizer state with `blockUntilReady`. jax-js materializes lazily, so an epoch whose metrics are never read back keeps its whole graph alive, including each chunk's gradient buffers. The dashboard reports once every ten epochs; without the forced step the Wasm heap grows by roughly 450 MiB per unreported epoch and the allocator's `(ptr + size + 65535) >> 16` page arithmetic goes negative past 2 GiB, failing with `WebAssembly.Memory.grow(): Argument 0 must be non-negative`. Forced each epoch, the heap settles at about 635 MiB and stays flat.
 
 WebGPU is exposed only in a secure browser context. `http://localhost:5173` is treated as trustworthy, but opening the development server as `http://noble-bolivar:5173` from another machine normally is not. In that case the dashboard reports the Wasm fallback and uses bounded gradient accumulation. Use HTTPS if WebGPU is required over the LAN.
+
+A secure context is necessary but not sufficient. On Linux `navigator.gpu.requestAdapter()` resolves to `null` unless the browser has a working Vulkan driver, so the dashboard falls back to Wasm even on localhost; `chrome://gpu` reports why. The run note distinguishes the two cases.
+
+Plan for that fallback being slow. The single-threaded Wasm path runs the quick preset at about 10 epochs per second, so it groks after roughly half a minute and finishes its 1,500 epochs in two and a half. The full preset manages roughly 0.4, which puts its 40,000 epochs the better part of a day away — correct, but a background job rather than a demonstration.
 
 ## Checks
 

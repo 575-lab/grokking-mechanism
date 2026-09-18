@@ -102,7 +102,7 @@ worker.onmessage = (event: MessageEvent<WorkerCommand>) => {
     send({
       type: "error",
       message: allocatorFailure
-        ? "The Wasm allocator ran out of addressable memory. Reduce the model size or use WebGPU over HTTPS/localhost."
+        ? "The Wasm allocator exhausted its 2 GiB address space. Reduce the modulus or the model size, or run on a backend with WebGPU."
         : normalized.message,
       stack: normalized.stack,
     });

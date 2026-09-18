@@ -6,13 +6,17 @@ import { buildDataset } from "./dataset";
 import { Trainer } from "./trainer";
 
 describe("full reproduction Wasm smoke test", () => {
-  it("completes repeated accumulated full-batch epochs without overflowing memory", async () => {
+  // `metricEvery` matters here. Reporting every epoch hides the lazy-graph
+  // retention this guards against, because reading a metric back forces the
+  // pending graph. The dashboard reports every tenth epoch, so the run has to
+  // survive nine consecutive epochs that nobody reads.
+  it("completes unreported accumulated full-batch epochs without overflowing memory", async () => {
     await init("wasm");
     defaultDevice("wasm");
     const config = {
       ...FULL_CONFIG,
-      totalEpochs: 5,
-      metricEvery: 1,
+      totalEpochs: 12,
+      metricEvery: 10,
       evaluateEvery: 100,
       backend: "wasm" as const,
     };
@@ -30,10 +34,10 @@ describe("full reproduction Wasm smoke test", () => {
 
     await trainer.run();
 
-    expect(metrics).toHaveLength(5);
+    expect(metrics.map((point) => point.epoch)).toEqual([1, 10]);
     expect(Number.isFinite(metrics[0]!.trainLoss)).toBe(true);
     expect(Number.isFinite(metrics[0]!.testLoss)).toBe(true);
     expect(heatmaps).toHaveLength(1);
     expect(heatmaps[0]).toHaveLength(config.p * config.p);
-  }, 120_000);
+  }, 300_000);
 });
