@@ -179,10 +179,16 @@ function handleMessage(message: WorkerMessage): void {
     const backendNote = chunked
       ? `Wasm is accumulating an exact full-batch gradient in ${message.trainChunkSize}-example chunks to stay within browser memory.`
       : `Backend ${message.selectedDevice} is executing each optimizer step as one full batch.`;
-    const securityNote =
-      message.selectedDevice === "wasm" && !message.secureContext
-        ? " WebGPU is unavailable over LAN HTTP; use HTTPS or localhost to enable it."
-        : "";
+    const wantedWebGpu = runningConfig?.backend !== "wasm";
+    const fellBack =
+      wantedWebGpu &&
+      message.selectedDevice !== "webgpu" &&
+      !message.availableDevices.includes("webgpu");
+    const securityNote = !fellBack
+      ? ""
+      : message.secureContext
+        ? " WebGPU exposed no adapter here, so training fell back to Wasm. On Linux that usually means the browser has no working Vulkan driver; chrome://gpu reports why."
+        : " WebGPU is unavailable over LAN HTTP; use HTTPS or localhost to enable it.";
     setText(
       "#run-note",
       `${backendNote}${securityNote} Mint pixels are correct held-out predictions.`,

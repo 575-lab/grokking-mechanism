@@ -269,6 +269,14 @@ export class Trainer {
         this.optimizerState = optimizerState;
         this.params = params;
 
+        // jax-js materializes arrays lazily, so an epoch that is never read
+        // back keeps its whole graph — and every chunk's gradient buffers —
+        // alive. Forcing the step here bounds the pending graph at one epoch.
+        // Without it the Wasm bump allocator grows by roughly 450 MiB per
+        // unreported epoch and overflows its 2 GiB address space after four
+        // epochs of the full preset.
+        await blockUntilReady([params, optimizerState]);
+
         const shouldEvaluate = epoch === 1 || epoch % this.config.evaluateEvery === 0;
         const shouldReport =
           epoch === 1 || epoch % this.config.metricEvery === 0 || shouldEvaluate;
@@ -319,7 +327,6 @@ export class Trainer {
             point,
             classifyPhase(lastTrainAccuracy, lastTestAccuracy),
           );
-          await blockUntilReady(params);
           await yieldToWorker();
         }
       }
