@@ -84,7 +84,7 @@ Open the localhost URL printed by Vite. The dashboard provides:
 - Training throughput and learning-phase indicators.
 - A modular-addition prediction field that distinguishes training and held-out pairs.
 
-The quick preset is intended for development and backend checks. The full preset matches the Python model dimensions and 40,000-epoch schedule.
+The full preset matches the Python model dimensions and 40,000-epoch schedule. The quick preset is tuned to grok in well under a minute: `p = 23`, a 70% training split, a 64-wide model, learning rate `3e-3` and weight decay `3.0`, run for 1,500 epochs. It memorizes the 370 training pairs by epoch 60–80, sits on the plateau, and generalizes between epochs 200 and 360 — on every one of ten seeds in the Python reference, and at epoch ~335 in the browser. The earlier quick preset (`p = 31`, 40% split, weight decay `1.0`) never left the plateau in 8,000 epochs; sweeping it showed that anything below a 60% split is seed-dependent and that the higher weight decay and learning rate are what make the transition fast.
 
 ## Browser implementation notes
 
@@ -100,7 +100,7 @@ WebGPU is exposed only in a secure browser context. `http://localhost:5173` is t
 
 A secure context is necessary but not sufficient. On Linux `navigator.gpu.requestAdapter()` resolves to `null` unless the browser has a working Vulkan driver, so the dashboard falls back to Wasm even on localhost; `chrome://gpu` reports why. The run note distinguishes the two cases.
 
-Plan for that fallback being slow. The single-threaded Wasm path runs the quick preset at 15-18 epochs per second once the tab is left alone, finishing its 8,000 epochs in about eight minutes. The full preset manages roughly 0.4, which puts its 40,000 epochs the better part of a day away — correct, but a background job rather than a demonstration.
+Plan for that fallback being slow. The single-threaded Wasm path runs the quick preset at about 10 epochs per second, so it groks after roughly half a minute and finishes its 1,500 epochs in two and a half. The full preset manages roughly 0.4, which puts its 40,000 epochs the better part of a day away — correct, but a background job rather than a demonstration.
 
 ## Checks
 
